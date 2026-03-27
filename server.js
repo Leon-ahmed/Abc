@@ -44,6 +44,37 @@ function buildDbConfig() {
 
 const pool = mysql.createPool(buildDbConfig());
 
+async function initDatabase() {
+  await pool.execute(`
+    CREATE TABLE IF NOT EXISTS users (
+      id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+      full_name VARCHAR(100) NOT NULL,
+      phone VARCHAR(20) NOT NULL,
+      pin_hash VARCHAR(255) NOT NULL,
+      balance DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      PRIMARY KEY (id),
+      UNIQUE KEY uk_users_phone (phone)
+    )
+  `);
+
+  await pool.execute(`
+    CREATE TABLE IF NOT EXISTS transactions (
+      id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+      user_id BIGINT UNSIGNED NOT NULL,
+      type ENUM('add_money','cashout','transfer_in','transfer_out') NOT NULL,
+      amount DECIMAL(12,2) NOT NULL,
+      reference_phone VARCHAR(20) NULL,
+      note VARCHAR(255) NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (id),
+      KEY idx_transactions_user_id (user_id),
+      CONSTRAINT fk_transactions_user FOREIGN KEY (user_id) REFERENCES users(id)
+    )
+  `);
+}
+
 function cleanPhone(phone) {
   return String(phone || '').trim();
 }
@@ -99,6 +130,9 @@ app.post('/api/auth/register', async (req, res) => {
     if (error && error.code === 'ER_DUP_ENTRY') {
       return res.status(409).json({ message: 'Phone number already registered.' });
     }
+    if (error && error.code === 'ER_NO_SUCH_TABLE') {
+      return res.status(500).json({ message: 'Database schema is missing. Please redeploy and try again.' });
+    }
     console.error('Register error:', error);
     const msg = error?.message || 'Failed to create account.';
     return res.status(500).json({ message: msg, debug: msg });
@@ -139,6 +173,9 @@ app.post('/api/auth/login', async (req, res) => {
       }
     });
   } catch (error) {
+    if (error && error.code === 'ER_NO_SUCH_TABLE') {
+      return res.status(500).json({ message: 'Database schema is missing. Please redeploy and try again.' });
+    }
     console.error('Login error:', error);
     return res.status(500).json({ message: 'Failed to sign in.' });
   }
@@ -426,6 +463,13 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok' });
 });
 
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+initDatabase()
+  .then(() => {
+    app.listen(PORT, () => {
+      console.log(`Server running on port ${PORT}`);
+    });
+  })
+  .catch((error) => {
+    console.error('Database init error:', error);
+    process.exit(1);
+  });
