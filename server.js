@@ -77,7 +77,8 @@ app.post('/api/auth/register', async (req, res) => {
       return res.status(409).json({ message: 'Phone number already registered.' });
     }
     console.error('Register error:', error);
-    return res.status(500).json({ message: 'Failed to create account.' });
+    const msg = error?.message || 'Failed to create account.';
+    return res.status(500).json({ message: msg, debug: msg });
   }
 });
 
