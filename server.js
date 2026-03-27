@@ -10,16 +10,39 @@ const PORT = Number(process.env.PORT || 3000);
 app.use(express.json());
 app.use(express.static(__dirname));
 
-const pool = mysql.createPool({
-  host: process.env.DB_HOST,
-  port: Number(process.env.DB_PORT || 3306),
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_NAME,
-  waitForConnections: true,
-  connectionLimit: 10,
-  queueLimit: 0
-});
+function buildDbConfig() {
+  const dbUrl =
+    process.env.DATABASE_URL ||
+    process.env.MYSQL_URL ||
+    process.env.MYSQL_PUBLIC_URL;
+
+  if (dbUrl) {
+    const url = new URL(dbUrl);
+    return {
+      host: url.hostname,
+      port: Number(url.port || 3306),
+      user: decodeURIComponent(url.username),
+      password: decodeURIComponent(url.password),
+      database: url.pathname.replace(/^\//, ''),
+      waitForConnections: true,
+      connectionLimit: 10,
+      queueLimit: 0
+    };
+  }
+
+  return {
+    host: process.env.DB_HOST || process.env.MYSQLHOST,
+    port: Number(process.env.DB_PORT || process.env.MYSQLPORT || 3306),
+    user: process.env.DB_USER || process.env.MYSQLUSER,
+    password: process.env.DB_PASSWORD || process.env.MYSQLPASSWORD,
+    database: process.env.DB_NAME || process.env.MYSQLDATABASE,
+    waitForConnections: true,
+    connectionLimit: 10,
+    queueLimit: 0
+  };
+}
+
+const pool = mysql.createPool(buildDbConfig());
 
 function cleanPhone(phone) {
   return String(phone || '').trim();

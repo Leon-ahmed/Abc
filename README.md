@@ -48,11 +48,9 @@ Open `http://localhost:3000`.
 - Create a MySQL database service (Railway MySQL plugin or external MySQL).
 - In Railway service variables, set:
 	- `PORT`
-	- `DB_HOST`
-	- `DB_PORT`
-	- `DB_USER`
-	- `DB_PASSWORD`
-	- `DB_NAME`
+	- Either `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`
+	- Or use Railway-provided `MYSQLHOST`, `MYSQLPORT`, `MYSQLUSER`, `MYSQLPASSWORD`, `MYSQLDATABASE`
+	- Or use a single connection string in `MYSQL_URL` or `DATABASE_URL`
 - Import `database.sql` into the connected MySQL instance.
 - Deploy from GitHub repo.
 
